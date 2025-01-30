@@ -22,6 +22,11 @@ import { Button } from '../ui/button';
 import { Image, LoaderCircle, Trash2 } from 'lucide-react';
 import { carRegistered } from '@/app/action';
 import PopUp from './PopUp';
+import { generateReactHelpers } from '@uploadthing/react';
+import emailjs from "@emailjs/browser";
+
+
+const { uploadFiles } = generateReactHelpers();
 
 const FormCar = () => {
   const form = useForm<z.infer<typeof carSchema>>({
@@ -41,31 +46,38 @@ const FormCar = () => {
   const [popUpMessage, setPopUpMessage] = useState<string>('');
   const [addingImages, setAddingImages] = useState<boolean>(true);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
 
   const handleImageSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
-      const updatedImages = Array.from(files).map((file) => URL.createObjectURL(file));
-      if (updatedImages.length + previewImages.length > 4) {
+      const selectedFiles = Array.from(files);
+
+      if (selectedFiles.length + previewImages.length > 4) {
+        // Limitation à 4 images maximum
         setPopUpType('Error');
-        setPopUpMessage('Choissisez au plus 4 images par soumission');
+        setPopUpMessage('Choisissez au plus 4 images par soumission.');
         setPopUpOpen(true);
       } else {
-        setPreviewImages((prev) => [...prev, ...updatedImages]);
+        // Prévisualisation locale des images
+        const updatedPreviews = selectedFiles.map((file) => URL.createObjectURL(file));
+        setPreviewImages((prev) => [...prev, ...updatedPreviews]);
+        setSelectedFiles((prev) => [...prev, ...selectedFiles]);
+        //console.log("ALE")
 
-        // Ajouter les fichiers au formulaire
+        // Mise à jour des fichiers dans le formulaire
         const currentImages = form.getValues().images || [];
-        form.setValue('images', [
-          ...currentImages,
-          ...Array.from(files).map((file) => ({ imageUrl: URL.createObjectURL(file) })),
-        ]);
+        form.setValue('images', [...currentImages, ...selectedFiles.map((file) => ({ imageUrl: URL.createObjectURL(file) })),]);
       }
     }
   };
 
   const removeImage = (index: number) => {
     const updatedPreview = previewImages.filter((_, i) => i !== index);
+    const updatedFiles = selectedFiles.filter((_, i) => i !== index);
     setPreviewImages(updatedPreview);
+    setSelectedFiles(updatedFiles)
 
     // Mettre à jour les images dans le formulaire
     const currentImages = form.getValues().images || [];
@@ -75,20 +87,53 @@ const FormCar = () => {
 
   const onSubmit = async (data: z.infer<typeof carSchema>) => {
     setIsPending(true);
-    try {
-      // Simuler un traitement
-      const uploadedImageUrls = previewImages; // Remplacez par une logique de téléversement si nécessaire
 
-      // Réinitialisation
-      form.reset();
-      setPreviewImages([]);
+    try {
+      const uploadedImages = await uploadFiles('carImage', { files: selectedFiles });
+
+      //Récupérer les URLs des images téléversées
+      const imageUrls = uploadedImages.map((result) => result.url);
+      // Étape 2 : Préparer les données finales
+      const finalData = {
+        ...data,
+        images: imageUrls,
+      };
+
+      // Simulation d'une API ou d'un traitement avec les données finales
+      await carRegistered(
+        finalData.email,
+        finalData.mark,
+        finalData.carModel,
+        finalData.description,
+        finalData.images
+      );
+      
+
+      // Réinitialisation du formulaire et des états
+      const formDataEmail = {
+        from_email: finalData.email,
+        marque: finalData.mark,
+        model: finalData.carModel,
+        description: finalData.description || '',
+        nimages: selectedFiles.length.toString(),
+      };
+      await emailjs.send(
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '',
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || '',
+        formDataEmail,
+        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || ''
+      );
       setPopUpType('Info');
       setPopUpMessage('Enregistrement réussi !');
-      await carRegistered(data.email, data.mark, data.carModel, data.description, uploadedImageUrls);
-
+      form.reset();
+      setPreviewImages([]);
+      setSelectedFiles([])
+      
+      
+      
     } catch (error) {
       setPopUpType('Error');
-      setPopUpMessage(error as string);
+      setPopUpMessage(`Une erreur est survenue : ${error}`);
     } finally {
       setPopUpOpen(true);
       setIsPending(false);
@@ -196,18 +241,21 @@ const FormCar = () => {
         <div>
           {
             (addingImages || previewImages.length == 0) && (
-              <Button
-                type='button'
-                variant={"outline"}
-                className=" w-full h-40 flex flex-col items-center justify-center"
-                onClick={() => {
-                  document.getElementById("imageInput")?.click()
-                  setAddingImages(false)
-                }}
-              >
-                <Image className="h-10 w-10 text-2xl text-primary" />
-                <span>Importer des images de la voiture</span>
-              </Button>
+              <>
+                <Button
+                  type='button'
+                  variant={"outline"}
+                  className=" w-full h-40 flex flex-col items-center justify-center"
+                  onClick={() => {
+                    document.getElementById("imageInput")?.click()
+                    setAddingImages(false)
+                  }}
+                >
+                  <Image className="h-10 w-10 text-2xl text-primary" />
+                  <span>Importer des images de la voiture</span>
+                </Button>
+              </>
+
             )
           }
           <input
@@ -236,11 +284,11 @@ const FormCar = () => {
         </div>
 
         {/* Boutons d'action */}
-        <div className="flex justify-end gap-4 mt-6">
+        <div className="flex justify-end gap-2 md:gap-4 mt-6">
           <Button
             type='button'
             variant={"destructive"}
-            className="text-xl text-white px-4 py-2 border rounded-md text-center"
+            className="text-xl text-white px-4 py-2 rounded-md text-center"
             onClick={handleCancel}
           >
             Annuler
@@ -251,7 +299,7 @@ const FormCar = () => {
             className="px-6 py-3 text-white bg-primary text-xl"
             onClick={handleMinImage}
           >
-            {isPending ? <LoaderCircle className="w-5 h-5 animate-spin" /> : 'Sauvegarder'}
+            {isPending ? <LoaderCircle className="w-5 h-5 animate-spin" /> : 'Soumettre'}
           </Button>
         </div>
       </form>

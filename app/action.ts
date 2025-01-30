@@ -7,6 +7,7 @@ export async function carRegistered(email: string, mark: string, carModel: strin
         throw new Error("Email manquant")
     }
     try {
+        //console.log("Start Registered")
         await prisma.car.create({
             data: {
                 author: email,
@@ -18,6 +19,7 @@ export async function carRegistered(email: string, mark: string, carModel: strin
                 }
             }
         })
+        //console.log("End Registered")
     } catch (error) {
         throw new Error("carRegisteredError: "+ error)
     }
