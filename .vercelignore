@@ -1,0 +1,5 @@
+# .vercelignore
+# Ignorer tout sauf le dossier prisma et le fichier schema.prisma
+*
+!prisma/
+!prisma/schema.prisma

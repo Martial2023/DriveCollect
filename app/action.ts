@@ -8,7 +8,7 @@ export async function carRegistered(email: string, mark: string, carModel: strin
     }
     try {
         //console.log("Start Registered")
-        await prisma.car.create({
+        const car = await prisma.car.create({
             data: {
                 author: email,
                 mark,
