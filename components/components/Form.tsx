@@ -19,11 +19,12 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { carSchema } from '@/schemas';
 import { Button } from '../ui/button';
-import { Image, LoaderCircle, Trash2 } from 'lucide-react';
+import { Images, LoaderCircle, Trash2 } from 'lucide-react';
 import { carRegistered } from '@/app/action';
 import PopUp from './PopUp';
 import { generateReactHelpers } from '@uploadthing/react';
 import emailjs from "@emailjs/browser";
+import Image from 'next/image';
 
 
 const { uploadFiles } = generateReactHelpers();
@@ -251,7 +252,7 @@ const FormCar = () => {
                     setAddingImages(false)
                   }}
                 >
-                  <Image className="h-10 w-10 text-2xl text-primary" />
+                  <Images className="h-10 w-10 text-2xl text-primary" />
                   <span>Importer des images de la voiture</span>
                 </Button>
               </>
@@ -270,7 +271,12 @@ const FormCar = () => {
           <div className="flex flex-wrap justify-center items-center gap-4 my-4">
             {previewImages.map((image, index) => (
               <div key={index} className="relative w-1/3">
-                <img src={image} alt={`preview-${index}`} className="w-full h-32 object-cover rounded-md" />
+                <Image
+                src={image}
+                alt={`preview-${index}`}
+                width={20}
+                height={20}
+                className="w-full h-32 object-cover rounded-md" />
                 <button
                   type='button'
                   className="absolute top-1 right-1 bg-white p-1 rounded-full shadow-md"
